@@ -1,0 +1,24 @@
+[
+  {
+    "directory": "D:/Documents/Project/mini terminal/mini_terminal",
+    "file": "D:/Documents/Project/mini terminal/mini_terminal/User/main.c",
+    "arguments": [
+      "D:/Keil_v5/ARM/ARMCC/Bin/armcc.exe",
+      "-D__CC_ARM",
+      "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+      "-DSTM32F411xE",
+      "-DUSE_STDPERIPH_DRIVER",
+      "-std=c99",
+      "-ID:/Keil_v5/ARM/ARMCC/include",
+      "-ID:/Keil_v5/ARM/PACK/ARM/CMSIS/5.2.0/CMSIS/Include",
+      "-ID:/Documents/Project/mini_terminal/mini_terminal_v0.5/Main",
+      "-ID:/Documents/Project/mini_terminal/mini_terminal_v0.5/Libs/FreeRTOS/include",
+      "-ID:/Documents/Project/mini_terminal/mini_terminal_v0.5/Libs/FreeRTOS/portable/RVDS/ARM_CM4F",
+      "-ID:/Documents/Project/mini_terminal/mini_terminal_v0.5/Libs/LVGL",
+      "-ID:/Documents/Project/mini_terminal/mini_terminal_v0.5/Drivers/CMSIS",
+      "-ID:/Documents/Project/mini_terminal/mini_terminal_v0.5/Drivers/Libs",
+      "-ID:/Documents/Project/mini_terminal/mini_terminal_v0.5/Drivers/Peripherals"
+    ]
+
+  }
+]
