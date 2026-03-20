@@ -7,5 +7,6 @@ void bsp_init(void) {
     SystemInit(); 
     ST7735s_Init();
     EC11_Init();
+    Button_Init();
 }
 

@@ -336,7 +336,7 @@
               <MiscControls>--diag_suppress=188,111,550</MiscControls>
               <Define>STM32F411xE,USE_STDPERIPH_DRIVER,USE_HSE_CRYSTAL,LV_CONF_INCLUDE_SIMPLE</Define>
               <Undefine></Undefine>
-              <IncludePath>.\Main;.\Drivers\CMSIS;.\Drivers\Libs;.\Drivers\Peripherals;.\Libs\FreeRTOS\include;.\Libs\FreeRTOS\portable\RVDS\ARM_CM4F;.\Libs\LVGL</IncludePath>
+              <IncludePath>.\Main;.\Drivers\CMSIS;.\Drivers\Libs;.\Drivers\Peripherals;.\Libs\FreeRTOS\include;.\Libs\FreeRTOS\portable\RVDS\ARM_CM4F;.\Libs\LVGL;.\App\Gui</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
