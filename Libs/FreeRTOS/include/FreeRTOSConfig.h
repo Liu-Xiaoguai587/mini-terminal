@@ -17,15 +17,17 @@
 #define configUSE_TICK_HOOK             1   // 是否使用时间片钩子函数
 #define configCPU_CLOCK_HZ              ( SystemCoreClock ) // 关键：直接引用 STM32 的主频变量
 #define configTICK_RATE_HZ              ( ( TickType_t ) 1000 ) // 系统心跳 1000Hz (1ms)
-#define configMAX_PRIORITIES            ( 5 )  // 最大优先级数
+#define configMAX_PRIORITIES            ( 10 )  // 最大优先级数
 #define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 128 ) // 空闲任务的栈大小
-#define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 30 * 1024 ) ) // 堆大小：给 FreeRTOS 分配 20KB RAM
+#define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 20 * 1024 ) ) // 堆大小：给 FreeRTOS 分配 20KB RAM
 #define configMAX_TASK_NAME_LEN         ( 16 ) // 任务名最大长度
 
 /* 互斥量与信号量 */
 #define configUSE_TRACE_FACILITY        1
 #define configUSE_16_BIT_TICKS          0
 #define configIDLE_SHOULD_YIELD         1
+#define configUSE_COUNTING_SEMAPHORES   1
+#define configUSE_EVENT_GROUPS          1
 #define configUSE_MUTEXES               1
 
 /* 协程配置 (一般不用，置0) */

@@ -336,7 +336,7 @@
               <MiscControls>--diag_suppress=188,111,550</MiscControls>
               <Define>STM32F411xE,USE_STDPERIPH_DRIVER,USE_HSE_CRYSTAL,LV_CONF_INCLUDE_SIMPLE</Define>
               <Undefine></Undefine>
-              <IncludePath>.\Main;.\Drivers\CMSIS;.\Drivers\Libs;.\Drivers\Peripherals;.\Libs\FreeRTOS\include;.\Libs\FreeRTOS\portable\RVDS\ARM_CM4F;.\Libs\LVGL;.\App\Gui</IncludePath>
+              <IncludePath>.\Main;.\Drivers\CMSIS;.\Drivers\Libs;.\Drivers\Peripherals;.\Libs\FreeRTOS\include;.\Libs\FreeRTOS\portable\RVDS\ARM_CM4F;.\Libs\LVGL;.\App\Gui;.\App\Logic;.\App\Tasks</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -396,11 +396,6 @@
           <GroupName>App/Gui</GroupName>
           <Files>
             <File>
-              <FileName>gui_control.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\App\Gui\gui_control.c</FilePath>
-            </File>
-            <File>
               <FileName>gui_menu.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\App\Gui\gui_menu.c</FilePath>
@@ -409,6 +404,31 @@
               <FileName>gui_test.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\App\Gui\gui_test.c</FilePath>
+            </File>
+            <File>
+              <FileName>gui_clock.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\App\Gui\gui_clock.c</FilePath>
+            </File>
+            <File>
+              <FileName>gui_page.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\App\Gui\gui_page.c</FilePath>
+            </File>
+            <File>
+              <FileName>gui_sensor.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\App\Gui\gui_sensor.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>App/Logic</GroupName>
+          <Files>
+            <File>
+              <FileName>sensor_data.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\App\Logic\sensor_data.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -426,9 +446,9 @@
               <FilePath>.\App\Tasks\task_lvgl.c</FilePath>
             </File>
             <File>
-              <FileName>task_gui.c</FileName>
+              <FileName>task_sensor.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\App\Tasks\task_gui.c</FilePath>
+              <FilePath>.\App\Tasks\task_sensor.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1251,11 +1271,6 @@
           <GroupName>Drivers/Peripherals</GroupName>
           <Files>
             <File>
-              <FileName>GL.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Drivers\Peripherals\GL.c</FilePath>
-            </File>
-            <File>
               <FileName>SPI.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Drivers\Peripherals\SPI.c</FilePath>
@@ -1274,6 +1289,16 @@
               <FileName>EC11.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Drivers\Peripherals\EC11.c</FilePath>
+            </File>
+            <File>
+              <FileName>I2C.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Drivers\Peripherals\I2C.c</FilePath>
+            </File>
+            <File>
+              <FileName>Sensors.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Drivers\Peripherals\Sensors.c</FilePath>
             </File>
           </Files>
         </Group>

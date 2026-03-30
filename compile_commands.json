@@ -18,7 +18,8 @@
       "-ID:/Documents/Project/mini_terminal/mini_terminal_v0.5/Drivers/CMSIS",
       "-ID:/Documents/Project/mini_terminal/mini_terminal_v0.5/Drivers/Libs",
       "-ID:/Documents/Project/mini_terminal/mini_terminal_v0.5/Drivers/Peripherals",
-      "-ID:/Documents/Project/mini_terminal/mini_terminal_v0.5/App/Gui/"
+      "-ID:/Documents/Project/mini_terminal/mini_terminal_v0.5/App/Gui/",
+      "-ID:/Documents/Project/mini_terminal/mini_terminal_v0.5/App/Logic/"
 
     ]
 
