@@ -1,5 +1,7 @@
 #include "Sensors.h"
 #include "I2c.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 /* ═══════════════════════════════════════════════════════
  *  AHT10  (温湿度传感器)
@@ -17,17 +19,13 @@ uint8_t AHT10_Read(float *temperature, float *humidity) {
     uint8_t cmd[3] = {0xAC, 0x33, 0x00};
     if (IIC_Write_Raw(AHT10_ADDR, cmd, 3)) return 1;
 
-    // 2. 轮询 busy 位（bit7=0 表示测量完成），最多等待约 100ms
-    uint8_t status;
-    uint32_t timeout = 1000000;
-    do {
-        if (IIC_Read_Raw(AHT10_ADDR, &status, 1)) return 1;
-        if (--timeout == 0) return 1;
-    } while (status & 0x80);
+    // 2. 等待测量完成。避免密集轮询 I2C，防止总线偶发卡死。
+    vTaskDelay(pdMS_TO_TICKS(80));
 
-    // 3. 读取 6 字节数据
+    // 3. 读取 6 字节数据：buf[0] 是状态字节，bit7=1 表示仍忙。
     uint8_t buf[6];
     if (IIC_Read_Raw(AHT10_ADDR, buf, 6)) return 1;
+    if (buf[0] & 0x80) return 1;
 
     // 4. 解析（20bit 原始值）
     uint32_t raw_hum  = ((uint32_t)buf[1] << 12) | ((uint32_t)buf[2] << 4) | (buf[3] >> 4);

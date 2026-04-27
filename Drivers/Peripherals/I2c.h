@@ -12,3 +12,4 @@ uint8_t IIC_Write_Raw(uint8_t dev_addr, uint8_t *buf, uint16_t len);
 uint8_t IIC_Read_Raw (uint8_t dev_addr, uint8_t *buf, uint16_t len);
 
 #endif // __I2C_H__
+

@@ -38,10 +38,11 @@ static void btn_test_poll(lv_timer_t *t) {
     lv_label_set_text_fmt(lb,
         "RAW GPIO:\n"
         " PB0(SELECT) = %d\n"
-        " PB1(EXIT)   = %d\n"
-        "(0 = pressed)",
+        " PB10(EXIT)  = %d\n"
+        "SELECT: 0=pressed\n"
+        "EXIT:   0=pressed",
         GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_0),
-        GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_1));
+        GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_10));
 }
 
 static void btn_test_create(lv_obj_t *parent) {

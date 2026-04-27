@@ -7,6 +7,8 @@
 #define IIC_SDA_SRC     GPIO_PinSource9
 #define IIC_TIMEOUT     10000
 
+static void IIC_Config_Peripheral(void);
+
 static void IIC_Bus_Recovery(void) {
     GPIO_InitTypeDef gpio;
 
@@ -54,6 +56,10 @@ void IIC_Init(void) {
     /* Recover bus before touching the I2C peripheral */
     IIC_Bus_Recovery();
 
+    IIC_Config_Peripheral();
+}
+
+static void IIC_Config_Peripheral(void) {
     RCC_APB1PeriphResetCmd(RCC_APB1Periph_I2C1, ENABLE);
     RCC_APB1PeriphResetCmd(RCC_APB1Periph_I2C1, DISABLE);
 
@@ -74,10 +80,18 @@ void IIC_Init(void) {
     I2C_InitStruct.I2C_OwnAddress1         = 0x00;
     I2C_InitStruct.I2C_Ack                 = I2C_Ack_Enable;
     I2C_InitStruct.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
-    I2C_InitStruct.I2C_ClockSpeed          = 400000;
+    I2C_InitStruct.I2C_ClockSpeed          = 100000;
     I2C_Init(I2C1, &I2C_InitStruct);
 
     I2C_Cmd(I2C1, ENABLE);
+}
+
+static void IIC_Recover(void) {
+    I2C_GenerateSTOP(I2C1, ENABLE);
+    I2C_AcknowledgeConfig(I2C1, ENABLE);
+    I2C_Cmd(I2C1, DISABLE);
+    IIC_Bus_Recovery();
+    IIC_Config_Peripheral();
 }
 
 static uint8_t wait_flag(uint32_t flag, FlagStatus status) {
@@ -95,7 +109,7 @@ static uint8_t wait_event(uint32_t event) {
 }
 
 uint8_t IIC_Write(uint8_t dev_addr, uint8_t reg_addr, uint8_t data) {
-    if (wait_flag(I2C_FLAG_BUSY, RESET))                              return 1;
+    if (wait_flag(I2C_FLAG_BUSY, RESET))                              { IIC_Recover(); return 1; }
     I2C_GenerateSTART(I2C1, ENABLE);
     if (wait_event(I2C_EVENT_MASTER_MODE_SELECT))                     goto fail;
     I2C_Send7bitAddress(I2C1, dev_addr, I2C_Direction_Transmitter);
@@ -106,11 +120,11 @@ uint8_t IIC_Write(uint8_t dev_addr, uint8_t reg_addr, uint8_t data) {
     if (wait_event(I2C_EVENT_MASTER_BYTE_TRANSMITTED))                goto fail;
     I2C_GenerateSTOP(I2C1, ENABLE);
     return 0;
-fail: I2C_GenerateSTOP(I2C1, ENABLE); return 1;
+fail: IIC_Recover(); return 1;
 }
 
 uint8_t IIC_Read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data) {
-    if (wait_flag(I2C_FLAG_BUSY, RESET))                              return 1;
+    if (wait_flag(I2C_FLAG_BUSY, RESET))                              { IIC_Recover(); return 1; }
     I2C_GenerateSTART(I2C1, ENABLE);
     if (wait_event(I2C_EVENT_MASTER_MODE_SELECT))                     goto fail;
     I2C_Send7bitAddress(I2C1, dev_addr, I2C_Direction_Transmitter);
@@ -124,15 +138,15 @@ uint8_t IIC_Read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data) {
     I2C_Send7bitAddress(I2C1, dev_addr, I2C_Direction_Receiver);
     if (wait_event(I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED))          goto fail;
     I2C_GenerateSTOP(I2C1, ENABLE);
-    if (wait_flag(I2C_FLAG_RXNE, SET))                                return 1;
+    if (wait_flag(I2C_FLAG_RXNE, SET))                                goto fail;
     *data = I2C_ReceiveData(I2C1);
     I2C_AcknowledgeConfig(I2C1, ENABLE);
     return 0;
-fail: I2C_GenerateSTOP(I2C1, ENABLE); return 1;
+fail: IIC_Recover(); return 1;
 }
 
 uint8_t IIC_Write_Buf(uint8_t dev_addr, uint8_t reg_addr, uint8_t *buf, uint16_t len) {
-    if (wait_flag(I2C_FLAG_BUSY, RESET))                              return 1;
+    if (wait_flag(I2C_FLAG_BUSY, RESET))                              { IIC_Recover(); return 1; }
     I2C_GenerateSTART(I2C1, ENABLE);
     if (wait_event(I2C_EVENT_MASTER_MODE_SELECT))                     goto fail;
     I2C_Send7bitAddress(I2C1, dev_addr, I2C_Direction_Transmitter);
@@ -145,11 +159,11 @@ uint8_t IIC_Write_Buf(uint8_t dev_addr, uint8_t reg_addr, uint8_t *buf, uint16_t
     }
     I2C_GenerateSTOP(I2C1, ENABLE);
     return 0;
-fail: I2C_GenerateSTOP(I2C1, ENABLE); return 1;
+fail: IIC_Recover(); return 1;
 }
 
 uint8_t IIC_Read_Buf(uint8_t dev_addr, uint8_t reg_addr, uint8_t *buf, uint16_t len) {
-    if (wait_flag(I2C_FLAG_BUSY, RESET))                              return 1;
+    if (wait_flag(I2C_FLAG_BUSY, RESET))                              { IIC_Recover(); return 1; }
     I2C_GenerateSTART(I2C1, ENABLE);
     if (wait_event(I2C_EVENT_MASTER_MODE_SELECT))                     goto fail;
     I2C_Send7bitAddress(I2C1, dev_addr, I2C_Direction_Transmitter);
@@ -172,11 +186,11 @@ uint8_t IIC_Read_Buf(uint8_t dev_addr, uint8_t reg_addr, uint8_t *buf, uint16_t 
     }
     I2C_AcknowledgeConfig(I2C1, ENABLE);
     return 0;
-fail: I2C_GenerateSTOP(I2C1, ENABLE); return 1;
+fail: IIC_Recover(); return 1;
 }
 
 uint8_t IIC_Write_Raw(uint8_t dev_addr, uint8_t *buf, uint16_t len) {
-    if (wait_flag(I2C_FLAG_BUSY, RESET))                              return 1;
+    if (wait_flag(I2C_FLAG_BUSY, RESET))                              { IIC_Recover(); return 1; }
     I2C_GenerateSTART(I2C1, ENABLE);
     if (wait_event(I2C_EVENT_MASTER_MODE_SELECT))                     goto fail;
     I2C_Send7bitAddress(I2C1, dev_addr, I2C_Direction_Transmitter);
@@ -187,11 +201,11 @@ uint8_t IIC_Write_Raw(uint8_t dev_addr, uint8_t *buf, uint16_t len) {
     }
     I2C_GenerateSTOP(I2C1, ENABLE);
     return 0;
-fail: I2C_GenerateSTOP(I2C1, ENABLE); return 1;
+fail: IIC_Recover(); return 1;
 }
 
 uint8_t IIC_Read_Raw(uint8_t dev_addr, uint8_t *buf, uint16_t len) {
-    if (wait_flag(I2C_FLAG_BUSY, RESET))                              return 1;
+    if (wait_flag(I2C_FLAG_BUSY, RESET))                              { IIC_Recover(); return 1; }
     I2C_GenerateSTART(I2C1, ENABLE);
     if (wait_event(I2C_EVENT_MASTER_MODE_SELECT))                     goto fail;
     I2C_Send7bitAddress(I2C1, dev_addr, I2C_Direction_Receiver);
@@ -207,5 +221,6 @@ uint8_t IIC_Read_Raw(uint8_t dev_addr, uint8_t *buf, uint16_t len) {
     }
     I2C_AcknowledgeConfig(I2C1, ENABLE);
     return 0;
-fail: I2C_GenerateSTOP(I2C1, ENABLE); return 1;
+fail: IIC_Recover(); return 1;
 }
+

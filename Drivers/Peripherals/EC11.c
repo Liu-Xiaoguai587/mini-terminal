@@ -6,7 +6,9 @@
 #define EC11_Pin_A GPIO_Pin_7
 
 #define BTN_SELECT_PIN  GPIO_Pin_0  // PB0
-#define BTN_EXIT_PIN    GPIO_Pin_1  // PB1
+#define BTN_EXIT_PIN    GPIO_Pin_10 // PB10
+#define BTN_SELECT_ACTIVE_LEVEL  0
+#define BTN_EXIT_ACTIVE_LEVEL    0
 
 void EC11_Init(void) {
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
@@ -53,10 +55,14 @@ void Button_Init(void) {
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
 
     GPIO_InitTypeDef GPIO_InitStruct;
-    GPIO_InitStruct.GPIO_Pin   = BTN_SELECT_PIN | BTN_EXIT_PIN;
+    GPIO_InitStruct.GPIO_Pin   = BTN_SELECT_PIN;
     GPIO_InitStruct.GPIO_Mode  = GPIO_Mode_IN;
     GPIO_InitStruct.GPIO_PuPd  = GPIO_PuPd_UP;
     GPIO_InitStruct.GPIO_Speed = GPIO_Speed_2MHz;
+    GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    GPIO_InitStruct.GPIO_Pin   = BTN_EXIT_PIN;
+    GPIO_InitStruct.GPIO_PuPd  = GPIO_PuPd_UP;
     GPIO_Init(GPIOB, &GPIO_InitStruct);
 }
 
@@ -66,8 +72,8 @@ static uint8_t ext_stable = 1;
 // 返回当前消抖后的按键电平（BTN_SELECT / BTN_EXIT 置位表示正在按住）
 uint8_t Button_Get_State(void) {
     uint8_t state = 0;
-    if (sel_stable == 0) state |= BTN_SELECT;
-    if (ext_stable == 0) state |= BTN_EXIT;
+    if (sel_stable == BTN_SELECT_ACTIVE_LEVEL) state |= BTN_SELECT;
+    if (ext_stable == BTN_EXIT_ACTIVE_LEVEL) state |= BTN_EXIT;
     return state;
 }
 
@@ -79,12 +85,12 @@ uint8_t Button_Scan(void) {
 
     uint8_t sel_raw = GPIO_ReadInputDataBit(GPIOB, BTN_SELECT_PIN);
     if (sel_raw != sel_stable) {
-        if (++sel_cnt >= 3) { sel_stable = sel_raw; sel_cnt = 0; if (sel_raw == 0) events |= BTN_SELECT; }
+        if (++sel_cnt >= 3) { sel_stable = sel_raw; sel_cnt = 0; if (sel_raw == BTN_SELECT_ACTIVE_LEVEL) events |= BTN_SELECT; }
     } else { sel_cnt = 0; }
 
     uint8_t ext_raw = GPIO_ReadInputDataBit(GPIOB, BTN_EXIT_PIN);
     if (ext_raw != ext_stable) {
-        if (++ext_cnt >= 3) { ext_stable = ext_raw; ext_cnt = 0; if (ext_raw == 0) events |= BTN_EXIT; }
+        if (++ext_cnt >= 3) { ext_stable = ext_raw; ext_cnt = 0; if (ext_raw == BTN_EXIT_ACTIVE_LEVEL) events |= BTN_EXIT; }
     } else { ext_cnt = 0; }
 
     return events;
