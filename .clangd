@@ -23,16 +23,16 @@
 
 CompileFlags:
   # 1. 移除 compile_commands.json 中干扰 clangd 的参数
-  Remove: 
+  Remove:
     - -D__CC_ARM
     - -mcpu=Cortex-M4
     # - -ID:/Keil_v5/ARM/ARMCC/inclwude
-  
+
   # 2. 添加让 clangd 能够正常工作的参数
   Add:
-    - "-D__GNUC__"               # 强制开启 GCC 兼容分支
-    - "--target=arm-none-eabi"   # 模拟交叉编译目标
-    - "-xc"                      # 强制以 C 语言解析
+    - "-D__GNUC__" # 强制开启 GCC 兼容分支
+    - "--target=arm-none-eabi" # 模拟交叉编译目标
+    - "-xc" # 强制以 C 语言解析
     - "-std=c99"
     - "-fdeclspec"
     - "-D__forceinline=inline"
@@ -42,6 +42,7 @@ CompileFlags:
     - "-ILibrary"
     - "-IUser"
     - "-ILVGL"
+    - "-ILibs/cJSON"
     # 根据你的 compile_commands.json 修正芯片定义（这里以 F411 为例）
     - "-DSTM32F411xE"
     - "-DUSE_STDPERIPH_DRIVER"

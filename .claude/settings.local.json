@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(sed:*)",
-      "Bash(cmake --build build)"
+      "Bash(cmake --build build)",
+      "Bash(find:*)"
     ]
   }
 }

@@ -336,7 +336,7 @@
               <MiscControls>--diag_suppress=188,111,550</MiscControls>
               <Define>STM32F411xE,USE_STDPERIPH_DRIVER,USE_HSE_CRYSTAL,LV_CONF_INCLUDE_SIMPLE</Define>
               <Undefine></Undefine>
-              <IncludePath>.\Main;.\Drivers\CMSIS;.\Drivers\Libs;.\Drivers\Peripherals;.\Libs\FreeRTOS\include;.\Libs\FreeRTOS\portable\RVDS\ARM_CM4F;.\Libs\LVGL;.\App\Gui;.\App\Logic;.\App\Tasks</IncludePath>
+              <IncludePath>.\Main;.\Drivers\CMSIS;.\Drivers\Libs;.\Drivers\Peripherals;.\Libs\FreeRTOS\include;.\Libs\FreeRTOS\portable\RVDS\ARM_CM4F;.\Libs\LVGL;.\Libs\cJSON;.\App\Gui;.\App\Logic;.\App\Tasks</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -420,6 +420,21 @@
               <FileType>1</FileType>
               <FilePath>.\App\Gui\gui_sensor.c</FilePath>
             </File>
+            <File>
+              <FileName>gui_api_demo.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\App\Gui\gui_api_demo.c</FilePath>
+            </File>
+            <File>
+              <FileName>gui_wifi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\App\Gui\gui_wifi.c</FilePath>
+            </File>
+            <File>
+              <FileName>gui_page.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\App\Gui\gui_page.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -429,6 +444,11 @@
               <FileName>sensor_data.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\App\Logic\sensor_data.c</FilePath>
+            </File>
+            <File>
+              <FileName>net_data.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\App\Logic\net_data.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -449,6 +469,21 @@
               <FileName>task_sensor.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\App\Tasks\task_sensor.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_wifi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\App\Tasks\task_wifi.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Libs/cJSON</GroupName>
+          <Files>
+            <File>
+              <FileName>cJSON.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Libs\cJSON\cJSON.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1299,6 +1334,21 @@
               <FileName>Sensors.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Drivers\Peripherals\Sensors.c</FilePath>
+            </File>
+            <File>
+              <FileName>ESP01S.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Drivers\Peripherals\ESP01S.c</FilePath>
+            </File>
+            <File>
+              <FileName>GL.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Drivers\Peripherals\GL.c</FilePath>
+            </File>
+            <File>
+              <FileName>USART2.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Drivers\Peripherals\USART2.c</FilePath>
             </File>
           </Files>
         </Group>

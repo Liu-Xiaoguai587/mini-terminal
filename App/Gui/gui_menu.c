@@ -5,12 +5,16 @@ extern const PageDef_t page_test;
 extern const PageDef_t page_btn_test;
 extern const PageDef_t page_sensor;
 extern const PageDef_t page_clock;
+extern const PageDef_t page_wifi;
+extern const PageDef_t page_api_demo;
 
 static const PageDef_t * const menu_sub_pages[] = {
     &page_test,
     &page_btn_test,
     &page_sensor,
     &page_clock,
+    &page_wifi,
+    &page_api_demo,
 };
 #define ITEM_COUNT ((int)(sizeof(menu_sub_pages) / sizeof(menu_sub_pages[0])))
 
