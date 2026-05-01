@@ -157,7 +157,7 @@ static uint8_t api_status_from_json(NetApiStatus_t *dst, const NetJsonData_t *js
     dst->valid = 1;
     dst->temp = (int16_t)temp;
     dst->btc_usd = (uint32_t)btc_usd;
-    dst->eth_usd = eth_usd;
+    dst->eth_usd = (uint32_t)eth_usd;
     dst->online = online;
     dst->last_update = xTaskGetTickCount();
 

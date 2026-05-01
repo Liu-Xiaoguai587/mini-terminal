@@ -11,7 +11,6 @@ static lv_timer_t *s_web3_timer;
 static void web3_update_labels(lv_timer_t *timer) {
     NetData_t nd;
     NetApiStatus_t api;
-    uint32_t eth_x100;
 
     (void)timer;
     if (!s_web3_sync || !s_web3_btc || !s_web3_eth) return;
@@ -34,12 +33,9 @@ static void web3_update_labels(lv_timer_t *timer) {
         return;
     }
 
-    eth_x100 = (uint32_t)(api.eth_usd * 100.0 + 0.5);
     lv_label_set_text_fmt(s_web3_blk, "HTTP:%d", (int)nd.last_http_status);
     lv_label_set_text_fmt(s_web3_btc, "$%lu", (unsigned long)api.btc_usd);
-    lv_label_set_text_fmt(s_web3_eth, "$%lu.%02lu",
-                          (unsigned long)(eth_x100 / 100),
-                          (unsigned long)(eth_x100 % 100));
+    lv_label_set_text_fmt(s_web3_eth, "$%lu", (unsigned long)api.eth_usd);
 }
 
 static void web3_ticker_row(lv_obj_t *parent,

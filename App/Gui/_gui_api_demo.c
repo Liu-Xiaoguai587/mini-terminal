@@ -19,7 +19,6 @@ static void update_display(lv_timer_t *t) {
     NetData_t nd;
     NetApiStatus_t api;
     uint32_t age_sec;
-    uint32_t eth_x100;
 
     (void)t;
 
@@ -51,20 +50,18 @@ static void update_display(lv_timer_t *t) {
     }
 
     age_sec = (uint32_t)((xTaskGetTickCount() - api.last_update) / configTICK_RATE_HZ);
-    eth_x100 = (uint32_t)(api.eth_usd * 100.0 + 0.5);
 
     lv_label_set_text_fmt(lbl_result,
                           "dev:%s\n"
                           "city:%s temp:%d\n"
                           "BTC:%lu\n"
-                          "ETH:%lu.%02lu\n"
+                          "ETH:%lu\n"
                           "online:%s age:%lus",
                           api.device,
                           api.city,
                           (int)api.temp,
                           (unsigned long)api.btc_usd,
-                          (unsigned long)(eth_x100 / 100),
-                          (unsigned long)(eth_x100 % 100),
+                          (unsigned long)api.eth_usd,
                           api.online ? "true" : "false",
                           (unsigned long)age_sec);
 }

@@ -52,7 +52,7 @@ typedef struct {
     char       city[NET_API_TEXT_SIZE];
     int16_t    temp;
     uint32_t   btc_usd;
-    double     eth_usd;
+    uint32_t   eth_usd;
     uint8_t    online;
     TickType_t last_update;
 } NetApiStatus_t;
