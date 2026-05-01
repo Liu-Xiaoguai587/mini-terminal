@@ -24,6 +24,7 @@ static lv_obj_t *s_lbl_left;
 static lv_obj_t *s_lbl_title;
 static lv_obj_t *s_lbl_right;
 static lv_obj_t *s_lbl_index;
+static uint8_t   s_entering;
 
 /* ── Update display widgets to reflect s_cur ───────────────── */
 static void update_card(void) {
@@ -46,16 +47,22 @@ static void card_event_cb(lv_event_t *e) {
             s_cur = (s_cur - 1 + ITEM_COUNT) % ITEM_COUNT;
             update_card();
         } else if (key == LV_KEY_ENTER) {
+            if (s_entering) return;
+            s_entering = 1;
             page_mgr_push(menu_sub_pages[s_cur]);
         }
     } else if (code == LV_EVENT_CLICKED) {
         /* Encoder center-press in edit mode also fires CLICKED */
+        if (s_entering) return;
+        s_entering = 1;
         page_mgr_push(menu_sub_pages[s_cur]);
     }
 }
 
 /* ── on_create ─────────────────────────────────────────────── */
 static void menu_create(lv_obj_t *parent) {
+    s_entering = 0;
+
     /* Full-screen card — plain container, no default padding/border */
     lv_obj_t *card = lv_obj_create(parent);
     lv_obj_set_size(card, LV_PCT(100), LV_PCT(100));

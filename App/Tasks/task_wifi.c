@@ -3,11 +3,18 @@
 #include "queue.h"
 #include "ESP01S.h"
 #include "net_data.h"
+#include <stdint.h>
 #include <string.h>
 
 /* ── WiFi credentials (change to your network) ─────────────── */
 #define WIFI_SSID  "mi"
 #define WIFI_PASS  "1244190080"
+
+/* ── Periodic API endpoint ─────────────────────────────────── */
+#define API_HOST           "192.168.31.220"
+#define API_PORT           8080
+#define API_PATH           "/api/status"
+#define API_POLL_INTERVAL  pdMS_TO_TICKS(60000)
 
 /* ── Command queue ──────────────────────────────────────────── */
 typedef enum {
@@ -28,37 +35,41 @@ typedef struct {
 } WifiCmd_t;
 
 QueueHandle_t wifi_cmd_queue;
+volatile uint8_t g_wifi_stage;
+volatile int16_t g_wifi_last_ret;
 
 /* ── HTTP work buffer (static to save stack) ────────────────── */
 static char http_buf[2048];
 
 /* ── Timeout error counter for auto-recovery ────────────────── */
 static uint8_t s_timeout_count;
+static TickType_t s_next_api_tick;
 
 /* ── Internal: handle HTTP GET command ──────────────────────── */
 static void handle_http_get(const WifiCmd_t *cmd) {
-    NetData_t nd = net_data_get();
-    nd.http_busy = 1;
-    net_data_set(&nd);
+    net_data_set_http_busy(1);
 
     ESP_HTTP_Response_t resp;
+    g_wifi_stage = 1;
     ESP_Result_t ret = ESP_HTTP_GET(cmd->host, cmd->port, cmd->path,
                                     http_buf, sizeof(http_buf), &resp);
+    g_wifi_last_ret = (int16_t)ret;
 
-    if (ret == ESP_OK && resp.body) {
+    if (ret == ESP_OK) {
+        g_wifi_stage = 2;
         net_data_set_http_result(resp.status_code, resp.body, resp.body_len);
         s_timeout_count = 0;
     } else {
-        net_data_set_http_result(-1, NULL, 0);
+        g_wifi_stage = 3;
+        net_data_set_http_result(-(int16_t)ret, NULL, 0);
         if (ret == ESP_TIMEOUT) s_timeout_count++;
     }
+    g_wifi_stage = 0;
 }
 
 /* ── Internal: handle HTTP POST command ─────────────────────── */
 static void handle_http_post(const WifiCmd_t *cmd) {
-    NetData_t nd = net_data_get();
-    nd.http_busy = 1;
-    net_data_set(&nd);
+    net_data_set_http_busy(1);
 
     ESP_HTTP_Response_t resp;
     ESP_Result_t ret = ESP_HTTP_POST(cmd->host, cmd->port, cmd->path,
@@ -66,11 +77,11 @@ static void handle_http_post(const WifiCmd_t *cmd) {
                                      cmd->post_body, cmd->post_body_len,
                                      http_buf, sizeof(http_buf), &resp);
 
-    if (ret == ESP_OK && resp.body) {
+    if (ret == ESP_OK) {
         net_data_set_http_result(resp.status_code, resp.body, resp.body_len);
         s_timeout_count = 0;
     } else {
-        net_data_set_http_result(-1, NULL, 0);
+        net_data_set_http_result(-(int16_t)ret, NULL, 0);
         if (ret == ESP_TIMEOUT) s_timeout_count++;
     }
 }
@@ -116,6 +127,29 @@ static void maintenance(void) {
     }
 }
 
+/* ── Internal: refresh cached API data every minute ─────────── */
+static void periodic_api_fetch(void) {
+    TickType_t now = xTaskGetTickCount();
+    NetData_t nd;
+    WifiCmd_t cmd;
+
+    if ((int32_t)(now - s_next_api_tick) < 0) return;
+
+    nd = net_data_get();
+    if (nd.wifi_state != ESP_WIFI_CONNECTED || nd.http_busy) return;
+
+    cmd.type = WIFI_CMD_HTTP_GET;
+    cmd.host = API_HOST;
+    cmd.port = API_PORT;
+    cmd.path = API_PATH;
+    cmd.content_type = NULL;
+    cmd.post_body = NULL;
+    cmd.post_body_len = 0;
+
+    handle_http_get(&cmd);
+    s_next_api_tick = xTaskGetTickCount() + API_POLL_INTERVAL;
+}
+
 /* ── WiFi task entry ────────────────────────────────────────── */
 void task_wifi(void *pvParameters) {
     (void)pvParameters;
@@ -141,6 +175,7 @@ void task_wifi(void *pvParameters) {
     }
 
     /* Main loop */
+    s_next_api_tick = xTaskGetTickCount();
     WifiCmd_t cmd;
     for (;;) {
         if (xQueueReceive(wifi_cmd_queue, &cmd, pdMS_TO_TICKS(10000)) == pdTRUE) {
@@ -164,5 +199,6 @@ void task_wifi(void *pvParameters) {
             /* Queue timeout = periodic maintenance */
             maintenance();
         }
+        periodic_api_fetch();
     }
 }

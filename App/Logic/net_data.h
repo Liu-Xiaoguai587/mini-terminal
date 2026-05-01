@@ -3,11 +3,13 @@
 
 #include "FreeRTOS.h"
 #include "ESP01S.h"
+#include <stdint.h>
 
 #define NET_HTTP_BODY_SIZE       512
 #define NET_JSON_MAX_FIELDS      8
 #define NET_JSON_KEY_SIZE        24
 #define NET_JSON_VALUE_SIZE      64
+#define NET_API_TEXT_SIZE        24
 
 typedef enum {
     NET_JSON_TYPE_NONE = 0,
@@ -44,13 +46,26 @@ typedef struct {
     TickType_t      last_update;
 } NetData_t;
 
+typedef struct {
+    uint8_t    valid;
+    char       device[NET_API_TEXT_SIZE];
+    char       city[NET_API_TEXT_SIZE];
+    int16_t    temp;
+    uint32_t   btc_usd;
+    double     eth_usd;
+    uint8_t    online;
+    TickType_t last_update;
+} NetApiStatus_t;
+
 void      net_data_init(void);
 NetData_t net_data_get(void);
 void      net_data_set(const NetData_t *d);
 void      net_data_set_wifi_state(ESP_WifiState_t state);
+void      net_data_set_http_busy(uint8_t busy);
 void      net_data_set_http_result(int16_t status, const char *body, uint16_t len);
 NetJsonData_t net_data_get_json(void);
 uint8_t   net_data_json_get_number(const char *key, double *out);
 uint8_t   net_data_json_get_string(const char *key, char *out, uint16_t out_len);
+NetApiStatus_t net_data_get_api_status(void);
 
 #endif /* __NET_DATA_H__ */

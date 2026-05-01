@@ -5,18 +5,11 @@
 static struct {
     const PageDef_t *stack[MAX_PAGE_STACK];
     lv_obj_t        *current_screen;
-    lv_obj_t        *pending_del;      /* screen to delete on next transition */
     int8_t           top;
 } s_mgr;
 
 /* ── Internal: create & load the page at the top of the stack ── */
 static void load_page_at_top(void) {
-    /* Delete screen left over from the PREVIOUS transition (safe here) */
-    if (s_mgr.pending_del) {
-        lv_obj_del(s_mgr.pending_del);
-        s_mgr.pending_del = NULL;
-    }
-
     lv_obj_t *old_scr = s_mgr.current_screen;
 
     /* 1. Clear group and exit edit mode so new page starts in nav mode */
@@ -35,10 +28,10 @@ static void load_page_at_top(void) {
     lv_scr_load(scr);
     if (page->on_enter) page->on_enter();
 
-    /* 4. Defer old screen deletion to the NEXT transition.
-     *    This avoids use-after-free when called from an event callback
-     *    on a widget that belongs to old_scr. */
-    s_mgr.pending_del = old_scr;
+    /* 4. Delete old screen asynchronously. Page transitions are often called
+     * from widget event callbacks; synchronous deletion can free the object
+     * whose callback is still unwinding. */
+    if (old_scr) lv_obj_del_async(old_scr);
 }
 
 /* ── Public API ──────────────────────────────────────────────── */
@@ -49,7 +42,6 @@ void page_mgr_init(const PageDef_t *root) {
 
     s_mgr.top            = -1;
     s_mgr.current_screen = NULL;
-    s_mgr.pending_del    = NULL;
     page_mgr_push(root);
 
     /* Now our root screen is active; safe to delete the old default screen */

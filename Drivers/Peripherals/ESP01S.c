@@ -8,10 +8,14 @@
 
 /* ── Internal state ─────────────────────────────────────────── */
 static ESP_WifiState_t s_wifi_state = ESP_WIFI_DISCONNECTED;
+volatile uint8_t  g_esp_http_stage;
+volatile uint16_t g_esp_recv_len;
+volatile int16_t  g_esp_http_status;
 
 /* ── Line buffer for AT response parsing ────────────────────── */
 #define LINE_BUF_SIZE  256
 static char s_line[LINE_BUF_SIZE];
+
 
 /* ── Helper: check if line starts with prefix ───────────────── */
 static uint8_t starts_with(const char *line, const char *prefix) {
@@ -108,6 +112,14 @@ init_ok:
     ESP_SendAT("AT+CWMODE=1", NULL, 0, 1000);
     /* Single connection mode */
     ESP_SendAT("AT+CIPMUX=0", NULL, 0, 1000);
+    /* Normal TCP mode, not transparent passthrough. */
+    ESP_SendAT("AT+CIPMODE=0", NULL, 0, 1000);
+    /* Active receive — push +IPD as soon as data arrives. Some ESP-AT v2.x
+     * firmwares default to passive (=1), which silently drops responses
+     * because we never call AT+CIPRECVDATA to pull them. */
+    ESP_SendAT("AT+CIPRECVMODE=0", NULL, 0, 1000);
+    /* Plain "+IPD,<len>:" header (no remote IP/port) so the parser matches. */
+    ESP_SendAT("AT+CIPDINFO=0", NULL, 0, 1000);
 
     return ESP_OK;
 }
@@ -180,6 +192,9 @@ ESP_Result_t ESP_TCP_Connect(const char *host, uint16_t port) {
 /* ── TCP Send ───────────────────────────────────────────────── */
 ESP_Result_t ESP_TCP_Send(const uint8_t *data, uint16_t len) {
     char cmd[32];
+    char prompt_buf[16];
+    uint8_t prompt_pos = 0;
+    uint8_t c;
     snprintf(cmd, sizeof(cmd), "AT+CIPSEND=%u", len);
 
     /* Send CIPSEND command and wait for '>' prompt */
@@ -187,35 +202,43 @@ ESP_Result_t ESP_TCP_Send(const uint8_t *data, uint16_t len) {
     USART2_SendStr(cmd);
     USART2_SendStr("\r\n");
 
-    /* Wait for '>' */
+    /* Wait for '>' prompt. It normally has no trailing newline, so do not use
+     * USART2_ReadLine() here or every send waits until the timeout expires. */
     TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(5000);
     for (;;) {
         TickType_t now = xTaskGetTickCount();
         int32_t remain = (int32_t)(deadline - now);
+        uint32_t wait_ms;
         if (remain <= 0) return ESP_TIMEOUT;
+        wait_ms = (remain > 50) ? 50U : (uint32_t)remain;
 
-        uint16_t n = USART2_ReadLine(s_line, LINE_BUF_SIZE, (uint32_t)remain);
-        if (n == 0) return ESP_TIMEOUT;
-        if (strchr(s_line, '>')) break;
-        if (starts_with(s_line, "ERROR")) return ESP_ERROR;
-        if (starts_with(s_line, "link is not")) return ESP_CONN_CLOSED;
+        if (USART2_ReadBytes(&c, 1, wait_ms) == 0) continue;
+        if (c == '>') break;
+
+        if (prompt_pos < sizeof(prompt_buf) - 1) {
+            prompt_buf[prompt_pos++] = (char)c;
+        } else {
+            memmove(prompt_buf, prompt_buf + 1, sizeof(prompt_buf) - 2);
+            prompt_buf[sizeof(prompt_buf) - 2] = (char)c;
+            prompt_pos = sizeof(prompt_buf) - 1;
+        }
+        prompt_buf[prompt_pos] = '\0';
+
+        if (strstr(prompt_buf, "ERROR") || strstr(prompt_buf, "FAIL")) {
+            return ESP_ERROR;
+        }
+        if (strstr(prompt_buf, "link is not")) {
+            return ESP_CONN_CLOSED;
+        }
     }
 
-    /* Send actual data */
+    /* Send actual data and return immediately. We deliberately do NOT
+     * consume "SEND OK" / "Recv N bytes" / "+IPD,..." here, because line-based
+     * matching against ESP-AT's bursty output races the response on fast LANs
+     * and silently drops the +IPD prefix. Let recv_ipd_data slurp the whole
+     * UART stream as raw bytes and parse_http_response find HTTP/ inside. */
     USART2_SendBuf(data, len);
-
-    /* Wait for SEND OK */
-    for (;;) {
-        TickType_t now = xTaskGetTickCount();
-        int32_t remain = (int32_t)(deadline - now);
-        if (remain <= 0) return ESP_TIMEOUT;
-
-        uint16_t n = USART2_ReadLine(s_line, LINE_BUF_SIZE, (uint32_t)remain);
-        if (n == 0) return ESP_TIMEOUT;
-        if (starts_with(s_line, "SEND OK")) return ESP_OK;
-        if (starts_with(s_line, "SEND FAIL")) return ESP_ERROR;
-        if (starts_with(s_line, "ERROR")) return ESP_ERROR;
-    }
+    return ESP_OK;
 }
 
 /* ── TCP Close ──────────────────────────────────────────────── */
@@ -223,63 +246,54 @@ ESP_Result_t ESP_TCP_Close(void) {
     return ESP_SendAT("AT+CIPCLOSE", NULL, 0, 5000);
 }
 
-/* ── Helper: receive +IPD data into buffer ──────────────────── */
+/* ── Helper: slurp raw UART bytes until CLOSED or idle ─────────
+ *
+ * Instead of trying to track ESP-AT line states (which vary by firmware
+ * version and race against fast servers), we just dump every byte that
+ * comes out of the UART into the buffer. The HTTP response (including
+ * "HTTP/1.1 ..." status line and "\r\n\r\n" body separator) ends up
+ * verbatim somewhere in the buffer, mixed with AT noise like
+ * "Recv N bytes\r\n", "+IPD,M:", "SEND OK\r\n". parse_http_response
+ * locates "HTTP/" in the stream and ignores the surrounding noise.
+ *
+ * Termination:
+ *   - the trailing "CLOSED\r\n" tail is detected and stops the loop
+ *   - or no byte arrives for `idle_ms` (response stream is done)
+ *   - or the absolute timeout / buffer fills
+ */
 static uint16_t recv_ipd_data(char *buf, uint16_t max_len, uint32_t timeout_ms) {
     uint16_t total = 0;
+    const uint32_t idle_ms = 150;
+    uint8_t saw_http = 0;
     TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(timeout_ms);
 
-    for (;;) {
+    while (total < max_len - 1) {
         TickType_t now = xTaskGetTickCount();
-        int32_t remain = (int32_t)(deadline - now);
-        if (remain <= 0) break;
+        int32_t remain_total = (int32_t)(deadline - now);
+        if (remain_total <= 0) break;
+        uint32_t this_wait = (uint32_t)remain_total;
+        if (this_wait > idle_ms) this_wait = idle_ms;
 
-        uint16_t n = USART2_ReadLine(s_line, LINE_BUF_SIZE, (uint32_t)remain);
-        if (n == 0) break;
-
-        /* Connection closed by server */
-        if (starts_with(s_line, "CLOSED")) break;
-        if (starts_with(s_line, "ERROR")) break;
-
-        /* Handle unsolicited */
-        if (starts_with(s_line, "WIFI ")) {
-            process_unsolicited(s_line);
+        uint8_t c;
+        uint16_t got = USART2_ReadBytes(&c, 1, this_wait);
+        if (got == 0) {
+            /* Ignore idle gaps before the HTTP response; AT noise such as
+             * "SEND OK" can arrive earlier than +IPD on some firmware. */
+            if (saw_http) break;
             continue;
         }
+        buf[total++] = (char)c;
+        buf[total] = '\0';
 
-        /* +IPD,<len>:<data...> */
-        if (starts_with(s_line, "+IPD,")) {
-            char *comma = s_line + 5;
-            char *colon = strchr(comma, ':');
-            if (!colon) continue;
+        if (!saw_http && strstr(buf, "HTTP/")) {
+            saw_http = 1;
+        }
 
-            uint16_t ipd_len = (uint16_t)atoi(comma);
-            colon++;  /* skip ':' */
-
-            /* Data after colon in this line */
-            uint16_t inline_len = n - (uint16_t)(colon - s_line);
-            if (inline_len > 0 && total < max_len) {
-                uint16_t copy = inline_len;
-                if (total + copy > max_len) copy = max_len - total;
-                memcpy(buf + total, colon, copy);
-                total += copy;
-            }
-
-            /* Remaining bytes to read */
-            uint16_t remaining = (ipd_len > inline_len) ? (ipd_len - inline_len) : 0;
-            if (remaining > 0 && total < max_len) {
-                uint16_t space = max_len - total;
-                uint16_t to_read = (remaining < space) ? remaining : space;
-                uint16_t got = USART2_ReadBytes((uint8_t *)(buf + total), to_read,
-                                               (uint32_t)remain);
-                total += got;
-                /* Discard excess if buffer full */
-                if (remaining > to_read) {
-                    uint16_t discard = remaining - to_read;
-                    uint8_t tmp;
-                    while (discard--) USART2_ReadBytes(&tmp, 1, 100);
-                }
-            }
-            continue;
+        /* Stop when we see the "CLOSED\r\n" tail emitted by ESP-AT
+         * after the server closes the TCP connection. */
+        if (total >= 8 && memcmp(buf + total - 8, "CLOSED\r\n", 8) == 0) {
+            total -= 8;  /* trim the trailing AT marker */
+            break;
         }
     }
 
@@ -289,6 +303,12 @@ static uint16_t recv_ipd_data(char *buf, uint16_t max_len, uint32_t timeout_ms) 
 
 /* ── Helper: parse HTTP response ────────────────────────────── */
 static void parse_http_response(char *buf, uint16_t len, ESP_HTTP_Response_t *out) {
+    char *p;
+    char *sp;
+    char *body;
+    char *json_body;
+    uint8_t sep_len = 0;
+
     out->status_code = -1;
     out->body = NULL;
     out->body_len = 0;
@@ -296,18 +316,65 @@ static void parse_http_response(char *buf, uint16_t len, ESP_HTTP_Response_t *ou
     if (len == 0 || !buf) return;
 
     /* Parse status line: "HTTP/1.x <code> ..." */
-    char *p = strstr(buf, "HTTP/");
+    p = strstr(buf, "HTTP/");
     if (!p) return;
-    char *sp = strchr(p, ' ');
+    sp = strchr(p, ' ');
     if (!sp) return;
     out->status_code = (int16_t)atoi(sp + 1);
 
-    /* Find body: separated by \r\n\r\n */
-    char *body = strstr(buf, "\r\n\r\n");
+    /* Find body from the HTTP status line, not from ESP-AT noise before it.
+     * Prefer the standard CRLF separator, but accept LF-only headers too. */
+    body = strstr(p, "\r\n\r\n");
     if (body) {
-        body += 4;
+        sep_len = 4;
+    } else {
+        body = strstr(p, "\n\n");
+        if (body) sep_len = 2;
+    }
+
+    if (body) {
+        uint16_t body_offset;
+        uint16_t body_len;
+        char *cl;
+
+        body += sep_len;
+        body_offset = (uint16_t)(body - buf);
+        body_len = len - body_offset;
+
+        /* Prefer Content-Length when present so trailing AT text such as
+         * "CLOSED" or "SEND OK" is not passed to the JSON parser. */
+        cl = strstr(p, "Content-Length:");
+        if (cl && cl < body) {
+            uint16_t declared = (uint16_t)atoi(cl + 15);
+            if (declared < body_len) body_len = declared;
+        }
+
         out->body = body;
-        out->body_len = len - (uint16_t)(body - buf);
+        out->body_len = body_len;
+    } else {
+        /* Fallback for displays/firmware paths that normalize line endings:
+         * locate the JSON payload directly instead of exposing ESP-AT noise. */
+        char *obj = strchr(p, '{');
+        char *arr = strchr(p, '[');
+
+        if (obj && arr) {
+            json_body = (obj < arr) ? obj : arr;
+        } else {
+            json_body = obj ? obj : arr;
+        }
+
+        if (json_body) {
+            char *cl = strstr(p, "Content-Length:");
+            uint16_t body_len = len - (uint16_t)(json_body - buf);
+
+            if (cl && cl < json_body) {
+                uint16_t declared = (uint16_t)atoi(cl + 15);
+                if (declared < body_len) body_len = declared;
+            }
+
+            out->body = json_body;
+            out->body_len = body_len;
+        }
     }
 }
 
@@ -318,11 +385,21 @@ ESP_Result_t ESP_HTTP_GET(const char *host, uint16_t port,
                           ESP_HTTP_Response_t *out) {
     ESP_Result_t ret;
 
+    g_esp_http_stage = 1;
+    g_esp_recv_len = 0;
+    g_esp_http_status = -1;
+
     out->status_code = -1;
     out->body = NULL;
     out->body_len = 0;
 
+    /* Defensive: drop any lingering TCP socket from a previous attempt.
+     * Otherwise CIPSTART can return "ALREADY CONNECTED" + "ERROR" and the
+     * server only ever sees the *first* request. Errors here are fine. */
+    ESP_TCP_Close();
+
     /* Open TCP connection */
+    g_esp_http_stage = 2;
     ret = ESP_TCP_Connect(host, port);
     if (ret != ESP_OK) return ret;
 
@@ -336,15 +413,23 @@ ESP_Result_t ESP_HTTP_GET(const char *host, uint16_t port,
         path, host);
 
     /* Send request */
+    g_esp_http_stage = 3;
     ret = ESP_TCP_Send((const uint8_t *)req, (uint16_t)req_len);
-    if (ret != ESP_OK) { ESP_TCP_Close(); return ret; }
+    if (ret != ESP_OK) return ret;
 
-    /* Receive response */
-    uint16_t recv_len = recv_ipd_data(resp_buf, resp_max - 1, 15000);
+    /* Receive response. Absolute timeout 5s — local LAN responses come back
+     * within a few hundred ms, the idle break inside recv_ipd_data will
+     * end the loop earlier when bytes stop flowing. */
+    g_esp_http_stage = 4;
+    uint16_t recv_len = recv_ipd_data(resp_buf, resp_max - 1, 5000);
+    g_esp_recv_len = recv_len;
     if (recv_len < resp_max) resp_buf[recv_len] = '\0';
 
     /* Parse */
+    g_esp_http_stage = 5;
     parse_http_response(resp_buf, recv_len, out);
+    g_esp_http_status = out->status_code;
+    g_esp_http_stage = 6;
 
     return ESP_OK;
 }
@@ -361,6 +446,9 @@ ESP_Result_t ESP_HTTP_POST(const char *host, uint16_t port,
     out->status_code = -1;
     out->body = NULL;
     out->body_len = 0;
+
+    /* Defensive close — see comment in ESP_HTTP_GET. */
+    ESP_TCP_Close();
 
     /* Open TCP connection */
     ret = ESP_TCP_Connect(host, port);

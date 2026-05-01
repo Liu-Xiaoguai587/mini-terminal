@@ -19,8 +19,10 @@
 #define configTICK_RATE_HZ              ( ( TickType_t ) 1000 ) // 系统心跳 1000Hz (1ms)
 #define configMAX_PRIORITIES            ( 10 )  // 最大优先级数
 #define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 128 ) // 空闲任务的栈大小
-#define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 20 * 1024 ) ) // 堆大小：给 FreeRTOS 分配 20KB RAM
+#define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 32 * 1024 ) ) // 堆大小：给 FreeRTOS 分配 32KB RAM
 #define configMAX_TASK_NAME_LEN         ( 16 ) // 任务名最大长度
+#define configCHECK_FOR_STACK_OVERFLOW  2
+#define configUSE_MALLOC_FAILED_HOOK    1
 
 /* 互斥量与信号量 */
 #define configUSE_TRACE_FACILITY        1
@@ -42,6 +44,8 @@
 #define INCLUDE_vTaskSuspend            1
 #define INCLUDE_vTaskDelayUntil         1
 #define INCLUDE_vTaskDelay              1
+#define INCLUDE_uxTaskGetStackHighWaterMark 1
+#define INCLUDE_xTaskGetCurrentTaskHandle   1
 
 /* Cortex-M 优先级配置 (STM32F4 必须配置这里！) */
 #ifdef __NVIC_PRIO_BITS
