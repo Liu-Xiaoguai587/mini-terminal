@@ -6,3 +6,4 @@ simulator/build/
 .codex
 .codex/
 server/node_modules/
+resource/

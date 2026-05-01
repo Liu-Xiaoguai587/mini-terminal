@@ -401,14 +401,14 @@
               <FilePath>.\App\Gui\gui_menu.c</FilePath>
             </File>
             <File>
-              <FileName>gui_test.c</FileName>
+              <FileName>gui_home.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\App\Gui\gui_test.c</FilePath>
+              <FilePath>.\App\Gui\gui_home.c</FilePath>
             </File>
             <File>
-              <FileName>gui_clock.c</FileName>
+              <FileName>gui_temp.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\App\Gui\gui_clock.c</FilePath>
+              <FilePath>.\App\Gui\gui_temp.c</FilePath>
             </File>
             <File>
               <FileName>gui_page.c</FileName>
@@ -416,24 +416,29 @@
               <FilePath>.\App\Gui\gui_page.c</FilePath>
             </File>
             <File>
-              <FileName>gui_sensor.c</FileName>
+              <FileName>gui_weather.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\App\Gui\gui_sensor.c</FilePath>
+              <FilePath>.\App\Gui\gui_weather.c</FilePath>
             </File>
             <File>
-              <FileName>gui_api_demo.c</FileName>
+              <FileName>gui_web3.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\App\Gui\gui_api_demo.c</FilePath>
+              <FilePath>.\App\Gui\gui_web3.c</FilePath>
             </File>
             <File>
-              <FileName>gui_wifi.c</FileName>
+              <FileName>gui_config.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\App\Gui\gui_wifi.c</FilePath>
+              <FilePath>.\App\Gui\gui_config.c</FilePath>
             </File>
             <File>
               <FileName>gui_page.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\App\Gui\gui_page.h</FilePath>
+            </File>
+            <File>
+              <FileName>gui_theme.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\App\Gui\gui_theme.h</FilePath>
             </File>
           </Files>
         </Group>
