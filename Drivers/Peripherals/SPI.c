@@ -1,9 +1,13 @@
 
 #include "stm32f4xx.h"
+#include "SPI.h"
 #include <stdint.h>
 
 #define CS_OFF  GPIO_SetBits(GPIOA, GPIO_Pin_10)
 #define CS_ON   GPIO_ResetBits(GPIOA, GPIO_Pin_10)
+
+static volatile spi_dma_done_cb_t s_dma_done_cb = 0;
+static volatile uint8_t s_dma_busy = 0;
 
 void Abstract_SPI_Init() {
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2, ENABLE);
@@ -68,6 +72,15 @@ void ABstract_SPI_DMA_Init(void) {
     DMA_Init(DMA1_Stream4, &DMA_InitStructure);
 
     SPI_I2S_DMACmd(SPI2, SPI_I2S_DMAReq_Tx, ENABLE);
+
+    DMA_ClearFlag(DMA1_Stream4, DMA_FLAG_TCIF4 | DMA_FLAG_FEIF4 | DMA_FLAG_DMEIF4 | DMA_FLAG_TEIF4 | DMA_FLAG_HTIF4);
+
+    NVIC_InitTypeDef NVIC_InitStructure;
+    NVIC_InitStructure.NVIC_IRQChannel = DMA1_Stream4_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 6;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStructure);
 }
 
 void DMA_Wait_Finish(void) {
@@ -92,6 +105,45 @@ void Abstract_SPI_DMA_Send(uint8_t *buf, uint16_t buf_size) {
     DMA_Wait_Finish();
 
     CS_OFF;
+}
+
+uint8_t Abstract_SPI_DMA_Busy(void) {
+    return s_dma_busy;
+}
+
+void Abstract_SPI_DMA_Send_IT(uint8_t *buf, uint16_t buf_size, spi_dma_done_cb_t done_cb) {
+    while (s_dma_busy);
+    while (DMA_GetCmdStatus(DMA1_Stream4) != DISABLE);
+
+    DMA_ClearFlag(DMA1_Stream4, DMA_FLAG_TCIF4 | DMA_FLAG_FEIF4 | DMA_FLAG_DMEIF4 | DMA_FLAG_TEIF4 | DMA_FLAG_HTIF4);
+
+    s_dma_done_cb = done_cb;
+    s_dma_busy = 1;
+
+    CS_ON;
+
+    DMA_SetCurrDataCounter(DMA1_Stream4, buf_size);
+    DMA1_Stream4->M0AR = (uint32_t)buf;
+
+    DMA_ITConfig(DMA1_Stream4, DMA_IT_TC, ENABLE);
+    DMA_Cmd(DMA1_Stream4, ENABLE);
+}
+
+void DMA1_Stream4_IRQHandler(void) {
+    if (DMA_GetITStatus(DMA1_Stream4, DMA_IT_TCIF4) != RESET) {
+        DMA_ClearITPendingBit(DMA1_Stream4, DMA_IT_TCIF4);
+        DMA_ITConfig(DMA1_Stream4, DMA_IT_TC, DISABLE);
+        DMA_Cmd(DMA1_Stream4, DISABLE);
+
+        while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_BSY) == SET);
+
+        CS_OFF;
+
+        spi_dma_done_cb_t cb = s_dma_done_cb;
+        s_dma_done_cb = 0;
+        s_dma_busy = 0;
+        if (cb) cb();
+    }
 }
 
 void Abstract_SPI_SendByte(uint8_t byte) {

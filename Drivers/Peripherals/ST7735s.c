@@ -106,6 +106,12 @@ void ST7735s_SendColorsDate(uint16_t *buf, uint16_t buf_size) {
     ST7735s_WriteMutiData((uint8_t *)buf, buf_size * 2);
 }
 
+void ST7735s_SendColorsDate_DMA(uint16_t *buf, uint16_t buf_size, spi_dma_done_cb_t done_cb) {
+    __CMD(RAMWR);
+    SWITCH_DATA_MODE;
+    Abstract_SPI_DMA_Send_IT((uint8_t *)buf, buf_size * 2, done_cb);
+}
+
 void ST7735s_Init() {
     Abstract_SPI_Init();
     ABstract_SPI_DMA_Init();

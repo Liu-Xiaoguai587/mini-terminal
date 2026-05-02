@@ -38,7 +38,7 @@ static void config_render_options(lv_obj_t *parent,
                                   lv_coord_t second_y) {
     config_row(parent, LV_ALIGN_TOP_LEFT, 5, first_y, ">Wifi", "OK", 1);
     config_row(parent, LV_ALIGN_TOP_RIGHT, -5, first_y, "Bright", "80", 0);
-    config_row(parent, LV_ALIGN_TOP_LEFT, 5, second_y, "Theme", "", 0);
+    config_row(parent, LV_ALIGN_TOP_LEFT, 5, second_y, "Time", "", 0);
     config_row(parent, LV_ALIGN_TOP_RIGHT, -5, second_y, "Reset", "", 0);
 }
 
